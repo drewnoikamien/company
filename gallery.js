@@ -67,8 +67,18 @@ const Gallery = (function() {
 
     // ============ OPTIMIZATION FEATURES ============
 
-    // Image cache for loaded images
-    const imageCache = new Map();
+    // Cache obrazów WYŁĄCZONY - powodował, że przy drugim otwarciu galerii
+    // kafelki zostawały ciemne. Przeglądarka i tak trzyma zdjęcia we własnej
+    // pamięci podręcznej, więc osobny cache w kodzie jest zbędny.
+    // Ta atrapa udaje zawsze pustą mapę, dzięki czemu kod zawsze ładuje
+    // obrazy normalną, sprawdzoną ścieżką (tą, która działa za pierwszym razem).
+    const imageCache = {
+        has: () => false,
+        get: () => undefined,
+        set: () => {},
+        clear: () => {},
+        get size() { return 0; }
+    };
 
     // Loading queue management
     let loadingQueue = [];
@@ -314,16 +324,32 @@ const Gallery = (function() {
 
     // Show successfully loaded image
     function showLoadedImage(img, placeholder, item, imageName) {
-        placeholder.style.display = 'none';
-        img.style.display = 'block';
+        // Funkcja finalnie odsłaniająca obraz w kafelku
+        function reveal() {
+            placeholder.style.display = 'none';
+            img.style.display = 'block';
+            // Płynne pojawienie się (bez gubienia przy wielu obrazach z cache)
+            requestAnimationFrame(() => {
+                img.style.opacity = '1';
+                item.classList.remove('placeholder-active');
+                item.classList.add('image-loaded');
+            });
+        }
+
         img.style.opacity = '0';
 
-        // Fade in image
-        setTimeout(() => {
-            img.style.opacity = '1';
-            item.classList.remove('placeholder-active');
-            item.classList.add('image-loaded');
-        }, 50);
+        // Jeśli obraz jest już zdekodowany i gotowy - pokaż od razu.
+        // W przeciwnym razie poczekaj na załadowanie, żeby nie odsłonić pustego kafelka.
+        if (img.complete && img.naturalWidth) {
+            reveal();
+        } else {
+            img.onload = reveal;
+            img.onerror = function() {
+                showImageError(placeholder);
+            };
+            // Bezpiecznik - gdyby onload nie odpalił, pokaż mimo to
+            setTimeout(reveal, 1000);
+        }
 
         // Add click event when image is loaded
         item.addEventListener('click', function() {
@@ -416,7 +442,6 @@ const Gallery = (function() {
         const zoomedImage = document.getElementById('zoomed-image');
         const zoomedTitle = document.getElementById('zoomed-title');
         const currentImage = currentImageArray[currentImageIndex];
-        const cacheKey = getCacheKey(currentImageFolder, currentImage);
 
         // Show loading state for zoom
         const imageContainer = zoomedImage.parentElement;
@@ -432,28 +457,10 @@ const Gallery = (function() {
         loader.style.display = 'flex';
         zoomedImage.style.opacity = '0.3';
 
-        // Check cache first
-        if (imageCache.has(cacheKey)) {
-            // Use cached image
-            const cachedSrc = imageCache.get(cacheKey);
-            showZoomedImage(zoomedImage, zoomedTitle, cachedSrc, currentImage, loader);
-        } else {
-            // Load new image
-            const tempImg = new Image();
-            tempImg.onload = function() {
-                // Cache the image
-                imageCache.set(cacheKey, this.src);
-                showZoomedImage(zoomedImage, zoomedTitle, this.src, currentImage, loader);
-            };
-
-            tempImg.onerror = function() {
-                loader.style.display = 'none';
-                zoomedImage.style.opacity = '1';
-                zoomedTitle.textContent = 'Nie udało się załadować zdjęcia';
-            };
-
-            tempImg.src = `./gallery/${currentImageFolder}/${currentImage}`;
-        }
+        // showZoomedImage sama ładuje obraz na widocznym elemencie i niezawodnie
+        // go pokazuje (obsługuje też obrazy z pamięci podręcznej przeglądarki).
+        const src = `./gallery/${currentImageFolder}/${currentImage}`;
+        showZoomedImage(zoomedImage, zoomedTitle, src, currentImage, loader);
 
         // Update active thumbnail
         updateActiveThumbnail();
@@ -463,43 +470,63 @@ const Gallery = (function() {
     }
 
     function showZoomedImage(zoomedImage, zoomedTitle, src, imageName, loader) {
-        // Set the source and title
-        zoomedImage.src = src;
         zoomedTitle.textContent = imageName.replace(/\.(jpg|png|jpeg)$/i, '');
 
-        // Calculate optimal dimensions
-        const tempImg = new Image();
-        tempImg.onload = function() {
-            const viewportWidth = window.innerWidth;
-            const viewportHeight = window.innerHeight;
-            const imageAspectRatio = this.naturalWidth / this.naturalHeight;
+        let shown = false;
+        function reveal() {
+            if (shown) return;
+            shown = true;
 
-            const maxWidth = viewportWidth * 0.9;
-            const maxHeight = viewportHeight * 0.7;
-            const maxAspectRatio = maxWidth / maxHeight;
-
-            let finalWidth, finalHeight;
-
-            if (imageAspectRatio > maxAspectRatio) {
-                finalWidth = Math.min(maxWidth, this.naturalWidth);
-                finalHeight = finalWidth / imageAspectRatio;
+            const nw = zoomedImage.naturalWidth;
+            const nh = zoomedImage.naturalHeight;
+            if (nw && nh) {
+                const imageAspectRatio = nw / nh;
+                const maxWidth = window.innerWidth * 0.9;
+                const maxHeight = window.innerHeight * 0.7;
+                const maxAspectRatio = maxWidth / maxHeight;
+                let finalWidth, finalHeight;
+                if (imageAspectRatio > maxAspectRatio) {
+                    finalWidth = Math.min(maxWidth, nw);
+                    finalHeight = finalWidth / imageAspectRatio;
+                } else {
+                    finalHeight = Math.min(maxHeight, nh);
+                    finalWidth = finalHeight * imageAspectRatio;
+                }
+                zoomedImage.style.width = finalWidth + 'px';
+                zoomedImage.style.height = finalHeight + 'px';
+                zoomedImage.style.maxWidth = 'none';
+                zoomedImage.style.maxHeight = 'none';
             } else {
-                finalHeight = Math.min(maxHeight, this.naturalHeight);
-                finalWidth = finalHeight * imageAspectRatio;
+                zoomedImage.style.width = 'auto';
+                zoomedImage.style.height = 'auto';
+                zoomedImage.style.maxWidth = '90vw';
+                zoomedImage.style.maxHeight = '70vh';
             }
+            if (loader) loader.style.display = 'none';
+            zoomedImage.style.opacity = '1';
+        }
 
-            zoomedImage.style.width = finalWidth + 'px';
-            zoomedImage.style.height = finalHeight + 'px';
-            zoomedImage.style.maxWidth = 'none';
-            zoomedImage.style.maxHeight = 'none';
-
-            // Hide loader and show image
-            setTimeout(() => {
-                loader.style.display = 'none';
-                zoomedImage.style.opacity = '1';
-            }, 100);
+        // Ustawiamy źródło bezpośrednio na widocznym obrazie
+        zoomedImage.style.opacity = '0';
+        zoomedImage.onload = reveal;
+        zoomedImage.onerror = function() {
+            if (loader) loader.style.display = 'none';
+            zoomedImage.style.opacity = '1';
+            zoomedTitle.textContent = 'Nie udało się załadować zdjęcia';
+            shown = true;
         };
-        tempImg.src = src;
+        zoomedImage.src = src;
+
+        // 1) Obraz już gotowy (w cache przeglądarki) - onload może nie odpalić, więc pokaż od razu
+        if (zoomedImage.complete && zoomedImage.naturalWidth) {
+            reveal();
+        }
+        // 2) decode() zawsze rozwiązuje się dla obrazu z cache - najpewniejszy sposób
+        if (zoomedImage.decode) {
+            zoomedImage.decode().then(reveal).catch(function(){ /* onload/onerror obsłuży */ });
+        }
+        // 3) Ostateczny bezpiecznik - gdyby wszystko inne zawiodło
+        setTimeout(reveal, 500);
     }
 
     function createThumbnails() {
