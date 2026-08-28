@@ -729,22 +729,23 @@ const Gallery = (function() {
                 wrapper.className = 'video-item';
 
                 const video = document.createElement('video');
-                // Fragment #t=0.1 podpowiada przeglądarce, by pokazała klatkę z ~0,1 s
-                // (czyli mniej więcej 3. klatkę) jako podgląd, zamiast czarnego pola.
-                video.src = src + '#t=0.1';
+                // Fragment #t=2 podpowiada przeglądarce, by pokazała klatkę z 2. sekundy
+                // nagrania jako podgląd, zamiast czarnego pola.
+                video.src = src + '#t=2';
                 video.controls = true;
                 video.preload = 'auto';   // wczytaj dane, by dało się pokazać klatkę podglądu
                 video.playsInline = true;
                 video.muted = true;       // pozwala przeglądarce wygenerować klatkę podglądu
 
-                // Podgląd od ~3. klatki: po wczytaniu danych przewijamy wideo na ~0,1 s,
+                // Podgląd od 2. sekundy: po wczytaniu danych przewijamy wideo na 2 s,
                 // żeby zamiast czarnego pola pokazać realną klatkę z nagrania.
+                // Gdy film jest krótszy niż 2 s, pokazujemy jego środek.
                 let seeked = false;
                 function seekToPreview() {
                     if (seeked) return;
                     if (!video.duration || isNaN(video.duration)) return;
                     seeked = true;
-                    const target = Math.min(0.1, video.duration / 2);
+                    const target = video.duration > 2 ? 2 : video.duration / 2;
                     try { video.currentTime = target; } catch (e) {}
                 }
                 video.addEventListener('loadedmetadata', seekToPreview);
