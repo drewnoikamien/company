@@ -940,19 +940,10 @@ body {
 .facebook-embed {
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    height: 100%;
-    min-height: 400px;
+    margin-top: 2rem;
 }
 .facebook-embed .fb-page,
 .facebook-embed .fb-page span,
 .facebook-embed .fb-page iframe {
     max-width: 100% !important;
-}
-
-@media (max-width: 991px) {
-    .facebook-embed {
-        margin-top: 2rem;
-        min-height: auto;
-    }
 }
