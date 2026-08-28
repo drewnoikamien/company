@@ -1,27 +1,14 @@
 // Gallery Module with Optimized Loading
 const Gallery = (function() {
     // ============ KONFIGURACJA GALERII ============
-    // Zdjęcia mają numerowane nazwy z zerami wiodącymi, np. P00001.JPG.
-    // Kod generuje pełną listę nazw w podanym zakresie, a następnie
-    // sprawdza, które pliki faktycznie istnieją - brakujące są pomijane
-    // (bez pokazywania błędu). Aby dodać zdjęcia, wystarczy wgrać kolejne
-    // pliki i zwiększyć wartość "count" poniżej.
-
-    // Generator numerowanych nazw plików: (prefix, count, ext) -> ['P00001.JPG', ...]
-    function buildImageList(prefix, count, ext) {
-        const list = [];
-        for (let i = 1; i <= count; i++) {
-            const num = String(i).padStart(5, '0');
-            list.push(`${prefix}${num}.${ext}`);
-        }
-        return list;
-    }
-
-    // Galeria realizacji: folder gallery/projects, pliki P00001.JPG ... P00295.JPG
-    const projectsImages = buildImageList('P', 295, 'JPG');
-    // (zachowana zmienna pomocnicza dla zgodności ze starym kodem)
-    const luxuryBathwareImages = projectsImages;
-    const premiumTilesImages = projectsImages;
+    // Każda sekcja galerii ma swój folder w gallery/. Listy plików pobierane
+    // są z manifest.json w danym folderze (generowanym skryptem generate-manifests.py).
+    // Mapowanie: identyfikator kategorii (użyty w index.html) -> nazwa folderu.
+    const GALLERY_CATEGORIES = {
+        'domy': 'house',
+        'baseny': 'swimming_pool',
+        'zadaszenia': 'others'
+    };
 
     // Cache informacji, które pliki istnieją (nazwa -> true/false)
     const existenceCache = new Map();
@@ -48,21 +35,21 @@ const Gallery = (function() {
         return results.filter(name => name !== null);
     }
 
-    // Pobiera listę zdjęć: najpierw próbuje wczytać manifest.json (szybko, bez zbędnych zapytań),
-    // a gdy go nie ma - skanuje kolejne numery i pomija brakujące pliki (wolniej, ale działa bez manifestu).
-    async function resolveImageList(folder, fallbackNames) {
+    // Pobiera listę zdjęć z manifest.json danego folderu.
+    // Manifesty generuje skrypt generate-manifests.py.
+    async function resolveImageList(folder) {
         try {
             const res = await fetch(`./gallery/${folder}/manifest.json`, { cache: 'no-cache' });
             if (res.ok) {
                 const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) {
+                if (Array.isArray(data)) {
                     return data;
                 }
             }
         } catch (e) {
-            // brak manifestu - przechodzimy do skanowania
+            // brak manifestu
         }
-        return filterExistingImages(folder, fallbackNames);
+        return [];
     }
 
     // ============ OPTIMIZATION FEATURES ============
@@ -157,12 +144,16 @@ const Gallery = (function() {
         modal.style.display = 'block';
         document.body.style.overflow = 'hidden';
 
-        // Jedna galeria realizacji - wszystkie zdjęcia z folderu gallery/projects
-        const folder = 'projects';
+        // Kategoria -> folder w gallery/
+        const folder = GALLERY_CATEGORIES[category];
+        if (!folder) {
+            gallery.innerHTML = '<div class="gallery-loading-note">Nieznana kategoria galerii.</div>';
+            return;
+        }
 
-        // Pokaż informację o ładowaniu, odfiltruj brakujące pliki, potem zbuduj galerię
+        // Pokaż informację o ładowaniu, wczytaj listę z manifestu, potem zbuduj galerię
         gallery.innerHTML = '<div class="gallery-loading-note">Ładowanie zdjęć...</div>';
-        resolveImageList(folder, projectsImages).then(existing => {
+        resolveImageList(folder).then(existing => {
             if (existing.length === 0) {
                 gallery.innerHTML = '<div class="gallery-loading-note">Brak zdjęć do wyświetlenia.</div>';
                 return;
@@ -738,10 +729,26 @@ const Gallery = (function() {
                 wrapper.className = 'video-item';
 
                 const video = document.createElement('video');
-                video.src = src;
+                // Fragment #t=0.1 podpowiada przeglądarce, by pokazała klatkę z ~0,1 s
+                // (czyli mniej więcej 3. klatkę) jako podgląd, zamiast czarnego pola.
+                video.src = src + '#t=0.1';
                 video.controls = true;
-                video.preload = 'metadata';
+                video.preload = 'auto';   // wczytaj dane, by dało się pokazać klatkę podglądu
                 video.playsInline = true;
+                video.muted = true;       // pozwala przeglądarce wygenerować klatkę podglądu
+
+                // Podgląd od ~3. klatki: po wczytaniu danych przewijamy wideo na ~0,1 s,
+                // żeby zamiast czarnego pola pokazać realną klatkę z nagrania.
+                let seeked = false;
+                function seekToPreview() {
+                    if (seeked) return;
+                    if (!video.duration || isNaN(video.duration)) return;
+                    seeked = true;
+                    const target = Math.min(0.1, video.duration / 2);
+                    try { video.currentTime = target; } catch (e) {}
+                }
+                video.addEventListener('loadedmetadata', seekToPreview);
+                video.addEventListener('loadeddata', seekToPreview);
 
                 wrapper.appendChild(video);
                 gallery.appendChild(wrapper);
@@ -821,11 +828,17 @@ window.closeImageZoom = Gallery.closeImageZoom;
     // --- Escape zamyka modale galerii zdjęć i filmów (gdy podgląd zoom nie jest otwarty) ---
     document.addEventListener('keydown', function (e) {
         if (e.key !== 'Escape' || zoomModalIsOpen()) return;
-        const projektyModal = document.getElementById('projekty-modal');
+        // Sprawdź każdą kategorię galerii zdjęć
+        const categories = ['domy', 'baseny', 'zadaszenia'];
+        for (const cat of categories) {
+            const m = document.getElementById(cat + '-modal');
+            if (m && m.style.display === 'block') {
+                Gallery.closeGalleryLightbox(cat);
+                return;
+            }
+        }
         const videoModal = document.getElementById('video-modal');
-        if (projektyModal && projektyModal.style.display === 'block') {
-            Gallery.closeGalleryLightbox('projekty');
-        } else if (videoModal && videoModal.style.display === 'block') {
+        if (videoModal && videoModal.style.display === 'block') {
             Gallery.closeVideoLightbox();
         }
     });

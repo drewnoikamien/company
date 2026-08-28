@@ -195,24 +195,48 @@
 				<p>Zobacz przykłady naszych prac - zdjęcia i filmy</p>
 			</div>
 			<div class="row g-4">
-				<div class="col-md-6">
-					<div class="gallery-category" onclick="openGalleryLightbox('projekty');">
+				<div class="col-md-6 col-lg-3">
+					<div class="gallery-category" onclick="openGalleryLightbox('domy');">
 						<div class="gallery-category-icon">
-							<i class="fas fa-images"></i>
+							<i class="fas fa-house-chimney"></i>
 						</div>
-						<h3>Galeria zdjęć</h3>
-						<p>Domy drewniane, tarasy, zadaszenia, pergole, wiaty, elewacje, podbitki dachowe, baseny oraz ogrody - przekrój naszych prac.</p>
+						<h3>Domy</h3>
+						<p>Domy szkieletowe całoroczne i letniskowe - nasze realizacje od podstaw.</p>
 						<div class="btn btn-primary-custom mt-3">
 							<i class="fas fa-images me-2"></i>Zobacz zdjęcia
 						</div>
 					</div>
 				</div>
-				<div class="col-md-6">
+				<div class="col-md-6 col-lg-3">
+					<div class="gallery-category" onclick="openGalleryLightbox('baseny');">
+						<div class="gallery-category-icon">
+							<i class="fas fa-water-ladder"></i>
+						</div>
+						<h3>Baseny</h3>
+						<p>Baseny wraz z otoczeniem dopasowanym do ogrodu i tarasu.</p>
+						<div class="btn btn-primary-custom mt-3">
+							<i class="fas fa-images me-2"></i>Zobacz zdjęcia
+						</div>
+					</div>
+				</div>
+				<div class="col-md-6 col-lg-3">
+					<div class="gallery-category" onclick="openGalleryLightbox('zadaszenia');">
+						<div class="gallery-category-icon">
+							<i class="fas fa-warehouse"></i>
+						</div>
+						<h3>Zadaszenia i tarasy</h3>
+						<p>Tarasy z kompozytu i drewna, zadaszenia tarasów oraz wiaty.</p>
+						<div class="btn btn-primary-custom mt-3">
+							<i class="fas fa-images me-2"></i>Zobacz zdjęcia
+						</div>
+					</div>
+				</div>
+				<div class="col-md-6 col-lg-3">
 					<div class="gallery-category" onclick="openVideoLightbox();">
 						<div class="gallery-category-icon">
 							<i class="fas fa-play"></i>
 						</div>
-						<h3>Filmy</h3>
+						<h3>Video</h3>
 						<p>Nagrania z naszych realizacji - zobacz nasze prace w ruchu.</p>
 						<div class="btn btn-primary-custom mt-3">
 							<i class="fas fa-play me-2"></i>Zobacz filmy
@@ -223,15 +247,41 @@
 		</div>
 	</section>
 
-	<!-- Modal galerii zdjęć (lightbox) -->
-	<div id="projekty-modal" class="lightbox-modal">
+	<!-- Modal galerii: Domy -->
+	<div id="domy-modal" class="lightbox-modal">
 		<div class="lightbox-content">
 			<div class="lightbox-header">
-				<h3 class="cinzel-decorative">Galeria zdjęć</h3>
-				<button class="lightbox-close" onclick="closeGalleryLightbox('projekty')">&times;</button>
+				<h3 class="cinzel-decorative">Domy</h3>
+				<button class="lightbox-close" onclick="closeGalleryLightbox('domy')">&times;</button>
 			</div>
-			<div class="lightbox-gallery" id="projekty-gallery">
-				<!-- Zdjęcia realizacji z folderu gallery/projects -->
+			<div class="lightbox-gallery" id="domy-gallery">
+				<!-- Zdjęcia z folderu gallery/house -->
+			</div>
+		</div>
+	</div>
+
+	<!-- Modal galerii: Baseny -->
+	<div id="baseny-modal" class="lightbox-modal">
+		<div class="lightbox-content">
+			<div class="lightbox-header">
+				<h3 class="cinzel-decorative">Baseny</h3>
+				<button class="lightbox-close" onclick="closeGalleryLightbox('baseny')">&times;</button>
+			</div>
+			<div class="lightbox-gallery" id="baseny-gallery">
+				<!-- Zdjęcia z folderu gallery/swimming_pool -->
+			</div>
+		</div>
+	</div>
+
+	<!-- Modal galerii: Zadaszenia i tarasy -->
+	<div id="zadaszenia-modal" class="lightbox-modal">
+		<div class="lightbox-content">
+			<div class="lightbox-header">
+				<h3 class="cinzel-decorative">Zadaszenia i tarasy</h3>
+				<button class="lightbox-close" onclick="closeGalleryLightbox('zadaszenia')">&times;</button>
+			</div>
+			<div class="lightbox-gallery" id="zadaszenia-gallery">
+				<!-- Zdjęcia z folderu gallery/others -->
 			</div>
 		</div>
 	</div>
@@ -240,7 +290,7 @@
 	<div id="video-modal" class="lightbox-modal">
 		<div class="lightbox-content">
 			<div class="lightbox-header">
-				<h3 class="cinzel-decorative">Filmy</h3>
+				<h3 class="cinzel-decorative">Video</h3>
 				<button class="lightbox-close" onclick="closeVideoLightbox()">&times;</button>
 			</div>
 			<div class="video-gallery" id="video-gallery">

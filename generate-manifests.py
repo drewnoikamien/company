@@ -1,27 +1,31 @@
 #!/usr/bin/env python3
 """
-Generator manifestów zdjęć dla strony "Drewno i kamień".
+Generator manifestów zdjęć i filmów dla strony "Drewno i kamień".
 
 Tworzy pliki manifest.json w folderach:
-  - gallery/projects  (zdjęcia galerii, np. P00001.JPG ...)
-  - gallery/main       (zdjęcia przewijane na górze strony, np. M00001.JPG ...)
-  - videos             (filmy z realizacji, np. V00001.MP4 ...)
+  - gallery/house          (sekcja "Domy")
+  - gallery/swimming_pool  (sekcja "Baseny")
+  - gallery/others         (sekcja "Zadaszenia i tarasy")
+  - gallery/main           (zdjęcia przewijane na górze strony)
+  - videos                 (sekcja "Video")
 
-Dzięki manifestom strona nie musi "zgadywać" nazw plików ani wysyłać
-setek zapytań do serwera - od razu wie, które zdjęcia załadować.
+Dzięki manifestom strona od razu wie, które pliki załadować - nie musi
+"zgadywać" nazw ani wysyłać setek zapytań do serwera.
 
 JAK UŻYWAĆ:
-  1. Wgraj/zmień zdjęcia w folderach gallery/projects i gallery/main.
+  1. Wgraj/zmień zdjęcia lub filmy w odpowiednich folderach.
   2. Uruchom w terminalu, będąc w katalogu strony:
          python3 generate-manifests.py
   3. Wgraj zmienione pliki manifest.json do repozytorium (git add / commit / push).
 
-Manifest to zwykła lista nazw plików posortowana rosnąco, np.:
-  ["P00001.JPG", "P00002.JPG", "P00004.JPG"]
+Uwaga: w folderach ze zdjęciami pliki filmowe (.mp4 itp.) są pomijane,
+a w folderze videos pomijane są zdjęcia. Sortowanie jest "naturalne",
+czyli 2.jpg wypada przed 10.jpg.
 """
 
 import json
 import os
+import re
 
 # Rozszerzenia uznawane za obrazy (wielkość liter bez znaczenia)
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
@@ -32,14 +36,22 @@ VIDEO_EXTS = {".mp4", ".webm", ".mov", ".ogg"}
 # Foldery do zeskanowania (względem położenia tego skryptu)
 # Dla każdego podajemy, jakie typy plików w nim uwzględnić.
 FOLDERS = [
-    ("gallery/projects", IMAGE_EXTS),
+    ("gallery/house", IMAGE_EXTS),
+    ("gallery/swimming_pool", IMAGE_EXTS),
+    ("gallery/others", IMAGE_EXTS),
     ("gallery/main", IMAGE_EXTS),
     ("videos", VIDEO_EXTS),
 ]
 
 
+def natural_key(name):
+    """Klucz sortowania naturalnego: '2.jpg' < '10.jpg'."""
+    parts = re.split(r'(\d+)', name)
+    return [int(p) if p.isdigit() else p.lower() for p in parts]
+
+
 def build_manifest(folder_path, allowed_exts):
-    """Zwraca posortowaną listę nazw plików danego typu w folderze."""
+    """Zwraca naturalnie posortowaną listę nazw plików danego typu w folderze."""
     names = []
     for entry in os.listdir(folder_path):
         full = os.path.join(folder_path, entry)
@@ -48,8 +60,7 @@ def build_manifest(folder_path, allowed_exts):
         ext = os.path.splitext(entry)[1].lower()
         if ext in allowed_exts and entry.lower() != "manifest.json":
             names.append(entry)
-    # Sortowanie naturalne po nazwie (P00001, P00002, ...)
-    names.sort()
+    names.sort(key=natural_key)
     return names
 
 
