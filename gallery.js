@@ -635,7 +635,11 @@ const Gallery = (function() {
         const zoomedTitle = document.getElementById('zoomed-title');
         const thumbnailsContainer = document.getElementById('thumbnails-container');
 
-        zoomedImage.src = '';
+        // Odpinamy handlery zanim wyczyścimy src, żeby ustawienie src='' nie
+        // wywołało starego onerror ani nie zostawiło wiszącego onload.
+        zoomedImage.onload = null;
+        zoomedImage.onerror = null;
+        zoomedImage.removeAttribute('src');
         zoomedImage.style.opacity = '0';
         zoomedTitle.textContent = '';
         thumbnailsContainer.innerHTML = '';
@@ -646,6 +650,8 @@ const Gallery = (function() {
             loader.style.display = 'none';
         }
 
+        // UWAGA: czyścimy tylko stan podglądu, NIE galleryImages/galleryFolder,
+        // bo są potrzebne przy ponownym otwarciu podglądu z tej samej galerii.
         currentImageIndex = 0;
         currentImageArray = [];
         currentImageFolder = '';
